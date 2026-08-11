@@ -1,0 +1,17 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments & IDEs
+.venv/
+venv/
+ENV/
+env/
+.idea/
+.vscode/
+.DS_Store
+
+# PyTorch & HuggingFace Cache
+.cache/
+huggingface/

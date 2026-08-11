@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer Dynamics Lab - Interactive Research Platform</title>
+    
+    <!-- Google Fonts: Inter & Fira Code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+    <style>
+        :root, [data-theme="dark"] {
+            --bg-dark: #090D16;
+            --bg-card: #111726;
+            --bg-card-hover: #182238;
+            --border-color: #232E47;
+            --border-highlight: #3B4B6E;
+            --text-primary: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --accent-cyan: #38BDF8;
+            --accent-blue: #3B82F6;
+            --accent-purple: #818CF8;
+            --accent-emerald: #34D399;
+            --accent-amber: #FBBF24;
+            --accent-rose: #F87171;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --grid-color: #1E293B;
+            --header-bg: rgba(17, 23, 38, 0.95);
+            --subcard-bg: #0B101D;
+            --input-bg: #090D16;
+        }
+
+        [data-theme="light"] {
+            --bg-dark: #F8FAFC;
+            --bg-card: #FFFFFF;
+            --bg-card-hover: #F1F5F9;
+            --border-color: #E2E8F0;
+            --border-highlight: #CBD5E1;
+            --text-primary: #0F172A;
+            --text-secondary: #475569;
+            --text-muted: #64748B;
+            --accent-cyan: #0284C7;
+            --accent-blue: #2563EB;
+            --accent-purple: #6366F1;
+            --accent-emerald: #059669;
+            --accent-amber: #D97706;
+            --accent-rose: #DC2626;
+            --grid-color: #E2E8F0;
+            --header-bg: rgba(255, 255, 255, 0.95);
+            --subcard-bg: #F1F5F9;
+            --input-bg: #F8FAFC;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.5;
+            padding-bottom: 60px;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        /* Header Navigation */
+        header {
+            background: var(--header-bg);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            color: var(--text-primary);
+        }
+
+        .logo-badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-cyan);
+            border-radius: 4px;
+            font-weight: 500;
+            font-family: 'Fira Code', monospace;
+        }
+
+        /* Tab Bar Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 6px;
+            background: var(--subcard-bg);
+            padding: 4px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 8px 18px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(0, 0, 0, 0.04);
+        }
+
+        .tab-btn.active {
+            background: var(--bg-card);
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-highlight);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        /* Main Container */
+        main {
+            max-width: 1400px;
+            margin: 28px auto;
+            padding: 0 24px;
+        }
+
+        /* Input Controls Panel */
+        .control-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        textarea {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+            min-height: 70px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+        }
+
+        .select-row {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        select, input[type="number"] {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .btn-run {
+            background: var(--accent-cyan);
+            color: #FFFFFF;
+            font-weight: 700;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: opacity 0.15s ease;
+        }
+
+        .btn-run:hover {
+            opacity: 0.9;
+        }
+
+        /* Core Metrics Overview Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .metric-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Fira Code', monospace;
+            color: var(--text-primary);
+        }
+
+        .metric-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Sentence Evolution Visual Flowchart (Slide 14 Demo) */
+        .evolution-flowchart {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 0 28px 0;
+            padding: 24px;
+            background: var(--subcard-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+        }
+
+        .evolution-node {
+            width: 100%;
+            max-width: 800px;
+            padding: 12px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .evolution-node.collapsed {
+            border: 1px dashed var(--accent-rose);
+            background: rgba(248, 113, 113, 0.06);
+        }
+
+        .node-tag {
+            font-size: 0.8rem;
+            font-weight: 700;
+            font-family: 'Fira Code', monospace;
+            color: var(--accent-cyan);
+            min-width: 75px;
+        }
+
+        .node-text {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.92rem;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .node-status {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+        }
+
+        .evolution-arrow {
+            font-size: 1.3rem;
+            color: var(--accent-cyan);
+            line-height: 1;
+            user-select: none;
+        }
+
+        /* Structured 4-Card Mechanics Grid */
+        .mechanics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .mechanics-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 18px;
+        }
+
+        .mechanics-card-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .mechanics-card-body {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+
+        /* Charts Layout */
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 950px) {
+            .charts-container, .mechanics-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 18px;
+            min-height: 380px;
+        }
+
+        .chart-header {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .chart-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .chart-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* Layer Explorer Controls */
+        .layer-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            accent-color: var(--accent-cyan);
+            height: 5px;
+            border-radius: 3px;
+        }
+
+        .layer-badge {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            font-family: 'Fira Code', monospace;
+            min-width: 90px;
+        }
+
+        /* AI Insights Box */
+        .insights-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .insights-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 12px;
+        }
+
+        .insights-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .insights-list li {
+            padding-left: 16px;
+            position: relative;
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
+
+        .insights-list li::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: var(--accent-cyan);
+        }
+
+        .section-heading {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 28px 0 16px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .badge-delta {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            gap: 6px;
+            transition: all 0.15s ease;
+        }
+
+        .theme-toggle-btn {
+            background: var(--subcard-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .theme-toggle-btn:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="logo-container">
+            <span class="logo-title">Transformer Dynamics Lab</span>
+            <span class="logo-badge">PyTorch 2.13 Engine</span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 14px;">
+            <nav class="tab-nav">
+                <button class="tab-btn active" data-tab="tab-observation">
+                    1. Observation
+                </button>
+                <button class="tab-btn" data-tab="tab-understanding">
+                    2. Understanding
+                </button>
+                <button class="tab-btn" data-tab="tab-experiment">
+                    3. Experiment
+                </button>
+                <button class="tab-btn" data-tab="tab-results">
+                    4. Results
+                </button>
+            </nav>
+
+            <button class="theme-toggle-btn" id="btn-theme-toggle" title="Switch Theme">
+                <span id="theme-icon">🌙</span> <span id="theme-label">Dark Mode</span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+
+        <!-- Global Input Controls -->
+        <section class="control-panel">
+            <div class="input-group">
+                <label for="input-text">Input Context Sequence</label>
+                <textarea id="input-text" placeholder="Enter input text to analyze transformer representations across layers...">Transformers update token representations across layers using self-attention and non-linear feedforward dynamics.</textarea>
+            </div>
+
+            <div class="select-row">
+                <div>
+                    <label for="select-model">Model Architecture</label>
+                    <select id="select-model">
+                        <option value="gpt2">GPT-2 (Autoregressive - 12 L)</option>
+                        <option value="distilgpt2">DistilGPT2 (Lightweight Autoregressive - 6 L)</option>
+                        <option value="bert">BERT Base (Bidirectional - 12 L)</option>
+                        <option value="roberta">RoBERTa Base (Bidirectional - 12 L)</option>
+                        <option value="ode_sim">ODE Attention Simulator (Continuous Dynamical Model)</option>
+                    </select>
+                </div>
+
+                <button class="btn-run" id="btn-analyze">
+                    Run Analysis
+                </button>
+            </div>
+        </section>
+
+        <!-- Core 4 Metrics Cards -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-title">Pairwise Distance (Collapse)</div>
+                <div class="metric-value" id="val-distance">--</div>
+                <div class="metric-sub">Mean L2 distance across tokens</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Cosine Similarity (SAM)</div>
+                <div class="metric-value" id="val-similarity">--</div>
+                <div class="metric-sub">Semantic convergence (0.0 to 1.0)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Effective Rank (Diversity)</div>
+                <div class="metric-value" id="val-rank">--</div>
+                <div class="metric-sub">Dimensional state space diversity</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Neural Stiffness Index (NSI)</div>
+                <div class="metric-value" id="val-nsi">--</div>
+                <div class="metric-sub">Layer-to-layer feature shift rate</div>
+            </div>
+        </section>
+
+        <!-- STAGE 1: OBSERVATION -->
+        <div id="tab-observation" class="tab-pane active">
+            <div class="charts-container">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Layer-wise Core Metric Dynamics</span>
+                        <span class="chart-desc">Tracks Pairwise Distance, Cosine Similarity (SAM), Effective Rank, and Neural Stiffness Index (NSI) across model layers to quantify representation collapse and feature shift rates.</span>
+                    </div>
+                    <div id="plot-metrics-overview" style="width:100%; height:340px;"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Token Representation Trajectories (2D PCA)</span>
+                        <span class="chart-desc">Projects high-dimensional token state vectors onto a 2D PCA subspace across layers to track token movement from initial embeddings into state space clusters.</span>
+                    </div>
+                    <div id="plot-trajectories" style="width:100%; height:340px;"></div>
+                </div>
+            </div>
+
+            <!-- Model Empirical Insights -->
+            <div class="insights-card" style="margin-bottom: 28px;">
+                <div class="insights-title">Model Dynamics Observations</div>
+                <ul class="insights-list" id="observation-notes-container">
+                    <li>Running analysis...</li>
+                </ul>
+            </div>
+
+            <!-- Empirical Benchmark Visuals Suite (GPT-2 vs BERT Paper Benchmarks) -->
+            <div class="section-heading">Empirical Benchmark Visuals (GPT-2 vs. BERT)</div>
+
+            <!-- Row 1: 3-Panel Metric Comparison -->
+            <div class="charts-container" style="grid-template-columns: repeat(3, 1fr);">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Avg Distance (Collapse)</span>
+                        <span class="chart-desc">Mean pairwise L2 Euclidean distance per layer for GPT-2 (collapsing) vs. BERT (spatially separated).</span>
+                    </div>
+                    <div id="bench-plot-distance" style="width:100%; height:300px;"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Cosine Similarity</span>
+                        <span class="chart-desc">Directional cosine alignment across layers; GPT-2 approaches ~0.95+ while BERT maintains distinct token directions.</span>
+                    </div>
+                    <div id="bench-plot-similarity" style="width:100%; height:300px;"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Rank (Diversity)</span>
+                        <span class="chart-desc">State space dimensionality via singular value entropy H(S). Deep-layer rank reduction in GPT-2 vs. stable rank in BERT.</span>
+                    </div>
+                    <div id="bench-plot-rank" style="width:100%; height:300px;"></div>
+                </div>
+            </div>
+
+            <!-- Row 2: NSI Single Plot -->
+            <div class="charts-container" style="grid-template-columns: 1fr;">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Neural Stiffness Index (NSI)</span>
+                        <span class="chart-desc">Measures relative representation velocity NSI<sub>l</sub> = ||X<sup>(l+1)</sup> - X<sup>(l)</sup>||<sub>F</sub> / ||X<sup>(l)</sup>||<sub>F</sub>, identifying early-layer stiffness spikes and middle compression valleys.</span>
+                    </div>
+                    <div id="bench-plot-nsi" style="width:100%; height:320px;"></div>
+                </div>
+            </div>
+
+            <!-- Row 3: Heatmaps Side-by-Side -->
+            <div class="charts-container" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">GPT-2 Similarity Heatmap</span>
+                        <span class="chart-desc">Pairwise token cosine similarity matrix at final layer of GPT-2. Uniform near-1.0 similarity confirms representation collapse.</span>
+                    </div>
+                    <div id="bench-heatmap-gpt2" style="width:100%; height:320px;"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">BERT Similarity Heatmap</span>
+                        <span class="chart-desc">Pairwise token cosine similarity matrix at final layer of BERT. Varied similarity scores confirm preserved contextual diversity.</span>
+                    </div>
+                    <div id="bench-heatmap-bert" style="width:100%; height:320px;"></div>
+                </div>
+            </div>
+
+            <!-- Row 4: Word Movement Side-by-Side -->
+            <div class="charts-container" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">GPT2 Word Movement (L2 Norm)</span>
+                        <span class="chart-desc">Total Euclidean distance traveled by each GPT-2 token vector from Layer 0 input embedding to the final output layer.</span>
+                    </div>
+                    <div id="bench-bar-gpt2" style="width:100%; height:300px;"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">BERT Word Movement (L2 Norm)</span>
+                        <span class="chart-desc">Total Euclidean distance traveled by each BERT token vector from Layer 0 input embedding to the final output layer.</span>
+                    </div>
+                    <div id="bench-bar-bert" style="width:100%; height:300px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STAGE 2: UNDERSTANDING -->
+        <div id="tab-understanding" class="tab-pane">
+            
+            <!-- Section A: Sentence Layer-by-Layer Evolution Flowchart (Slide 14 Demo) -->
+            <div class="section-heading">Sentence Layer-by-Layer Transformation Flow (Decoded Sequence)</div>
+            <div class="evolution-flowchart" id="sentence-evolution-container">
+                <div class="evolution-node">
+                    <span class="node-tag">Layer 0</span>
+                    <span class="node-text">Transformers are quite powerful.</span>
+                    <span class="node-status">Raw Input Embeddings & Positional Signals</span>
+                </div>
+                <div class="evolution-arrow">↓</div>
+                <div class="evolution-node">
+                    <span class="node-tag">Layer 2</span>
+                    <span class="node-text">Transformers are powerful</span>
+                    <span class="node-status">Syntactic Aggregation & Local Context Mixing</span>
+                </div>
+                <div class="evolution-arrow">↓</div>
+                <div class="evolution-node">
+                    <span class="node-tag">Layer 4</span>
+                    <span class="node-text">powerful</span>
+                    <span class="node-status">Salient Keyword Feature Compression</span>
+                </div>
+                <div class="evolution-arrow">↓</div>
+                <div class="evolution-node">
+                    <span class="node-tag">Layer 6</span>
+                    <span class="node-text">good</span>
+                    <span class="node-status">Middle Feature Compression Valley (Abstract Core)</span>
+                </div>
+                <div class="evolution-arrow">↓</div>
+                <div class="evolution-node collapsed">
+                    <span class="node-tag">Layer 12</span>
+                    <span class="node-text">[collapsed representation]</span>
+                    <span class="node-status">Unified State / Total Vector Convergence</span>
+                </div>
+            </div>
+
+            <!-- Section B: Interactive Layer Inspector & Structured Mechanics Grid -->
+            <div class="section-heading">Layer Operations & Component Mechanics</div>
+            
+            <div class="layer-slider-container">
+                <label for="layer-range">Select Layer:</label>
+                <input type="range" id="layer-range" min="0" max="12" value="0">
+                <span class="layer-badge" id="layer-display">Layer 0</span>
+            </div>
+
+            <!-- Structured 4-Card Mechanics Grid -->
+            <div class="mechanics-grid">
+                <div class="mechanics-card">
+                    <div class="mechanics-card-title" id="mech-stage-title">Layer Stage & Functional Objective</div>
+                    <div class="mechanics-card-body" id="mech-stage-body">
+                        Select a layer using the slider above to analyze its exact functional transformation.
+                    </div>
+                </div>
+
+                <div class="mechanics-card">
+                    <div class="mechanics-card-title">Stiffness & Transformation Diagnosis</div>
+                    <div class="mechanics-card-body" id="mech-stiffness-body">
+                        Evaluates local NSI values and transformation intensity across consecutive layers.
+                    </div>
+                </div>
+
+                <div class="mechanics-card">
+                    <div class="mechanics-card-title">Layer Operation Math Formulation</div>
+                    <div class="mechanics-card-body" style="font-family: 'Fira Code', monospace; font-size: 0.88rem;" id="mech-math-body">
+                        Hidden State: X<sup>(l)</sup> = X<sup>(l-1)</sup> + SelfAttention(X<sup>(l-1)</sup>) + MLP(X<sup>(l-1)</sup>)
+                    </div>
+                </div>
+
+                <div class="mechanics-card">
+                    <div class="mechanics-card-title">Sub-component Functional Breakdown</div>
+                    <div class="mechanics-card-body" id="mech-components-body">
+                        • Self-Attention: Mixes context across sequence.<br>
+                        • MLP Sub-layer: Non-linear feature projection.<br>
+                        • Residual Stream: Gradient flow X + f(X).<br>
+                        • LayerNorm: Covariate shift stabilization.
+                    </div>
+                </div>
+            </div>    </div>
+
+            <!-- Section C: Visual Inspections -->
+            <div class="charts-container">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Self-Attention Matrix A<sub>ij</sub></span>
+                        <span class="chart-desc">Attention weight heatmap showing how each token distributes query attention weight across key tokens at the selected layer.</span>
+                    </div>
+                    <div id="plot-attention-heatmap" style="width:100%; height:340px;"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title">Token Vector Norms & Layer Shifts (ΔX)</span>
+                        <span class="chart-desc">Compares absolute token vector magnitude ||X<sub>i</sub>|| against incremental layer shift ||ΔX<sub>i</sub>|| = ||X<sub>i</sub><sup>(l)</sup> - X<sub>i</sub><sup>(l-1)</sup>|| at the selected layer.</span>
+                    </div>
+                    <div id="plot-token-movement" style="width:100%; height:340px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STAGE 3: EXPERIMENT -->
+        <div id="tab-experiment" class="tab-pane">
+            <div class="control-panel">
+                <h3 style="margin-bottom:12px; color:var(--text-primary);">Single-Variable Controlled Experimentation</h3>
+                <p style="color:var(--text-secondary); font-size: 0.9rem; margin-bottom:20px;">
+                    Modify exactly one component or structural parameter to isolate its effect on representation dynamics.
+                </p>
+
+                <div class="select-row" style="margin-bottom:20px;">
+                    <div>
+                        <label for="exp-pe-mode">Positional Encoding</label>
+                        <select id="exp-pe-mode">
+                            <option value="default">Default (Standard PE)</option>
+                            <option value="zeroed">Zeroed (No Position Info)</option>
+                            <option value="scrambled">Scrambled Positions</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="exp-skip-layer">Single Layer Pruning</label>
+                        <select id="exp-skip-layer">
+                            <option value="none">None (Full Model)</option>
+                            <option value="3">Skip Layer 3</option>
+                            <option value="6">Skip Layer 6</option>
+                            <option value="9">Skip Layer 9 (Compression Valley Test)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="exp-skip-range">Block Range Pruning (LaCo)</label>
+                        <select id="exp-skip-range">
+                            <option value="none">None</option>
+                            <option value="4-8">Skip Layers 4-8 (Middle Compression Valley)</option>
+                            <option value="8-11">Skip Layers 8-11 (Late Layers)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="exp-disable-comp">Component Disabling</label>
+                        <select id="exp-disable-comp">
+                            <option value="none">None (Full Sub-layers)</option>
+                            <option value="mlp">Disable MLP Sub-layers</option>
+                            <option value="attention">Disable Attention Sub-layers</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="exp-attn-scale">Attention Scaling</label>
+                        <select id="exp-attn-scale">
+                            <option value="1.0">1.0x (Default)</option>
+                            <option value="0.5">0.5x (Attenuated)</option>
+                            <option value="1.5">1.5x (Amplified)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn-run" id="btn-run-experiment">
+                    Run Controlled Experiment
+                </button>
+            </div>
+        </div>
+
+        <!-- STAGE 4: RESULTS -->
+        <div id="tab-results" class="tab-pane">
+            <div class="charts-container">
+                <div class="chart-card" style="grid-column: span 2;">
+                    <div class="chart-header">
+                        <span class="chart-title">Baseline vs. Modified Model Metric Comparison</span>
+                        <span class="chart-desc">Overlay metric comparison across all layers isolating the structural impact of single-variable modifications (e.g. layer pruning, component scaling).</span>
+                    </div>
+                    <div id="plot-results-comparison" style="width:100%; height:380px;"></div>
+                </div>
+            </div>
+
+            <div class="insights-card">
+                <div class="insights-title">AI Research Conclusions & Architectural Suggestions</div>
+                <ul class="insights-list" id="insights-container">
+                    <li>Run an experiment in Stage 3 to view comparative architectural conclusions and optimization suggestions.</li>
+                </ul>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="src/app.js"></script>
+</body>
+</html>
