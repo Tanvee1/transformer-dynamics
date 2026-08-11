@@ -11,9 +11,39 @@ import subprocess
 import webbrowser
 import time
 
+def find_python_with_deps():
+    candidates = [
+        "/Users/tanvee/miniforge3/bin/python3",
+        sys.executable,
+        "python3",
+        "python"
+    ]
+    for cand in candidates:
+        try:
+            res = subprocess.run([cand, "-c", "import uvicorn, torch; print('ok')"], capture_output=True, text=True)
+            if res.returncode == 0:
+                return cand
+        except Exception:
+            pass
+    return sys.executable
+
 def main():
     root_dir = os.path.dirname(os.path.abspath(__file__))
     backend_dir = os.path.join(root_dir, "backend")
+    
+    # Check if current python has uvicorn & torch
+    try:
+        import uvicorn
+        import torch
+    except ImportError:
+        valid_py = find_python_with_deps()
+        if valid_py != sys.executable:
+            os.execv(valid_py, [valid_py, __file__] + sys.argv[1:])
+        else:
+            print("❌ Dependencies missing. Installing requirements...")
+            subprocess.run([sys.executable, "-m", "pip", "install", "-r", os.path.join(root_dir, "requirements.txt")])
+            import uvicorn
+            import torch
     
     print("=" * 65)
     print("🚀 Launching Transformer Dynamics Lab Platform...")
