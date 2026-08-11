@@ -102,6 +102,17 @@ function initControls() {
 async function runObservation() {
     const text = document.getElementById('input-text').value;
     const model = document.getElementById('select-model').value;
+    const btn = document.getElementById('btn-analyze');
+    
+    if (btn) {
+        btn.innerText = 'Computing Dynamics...';
+        btn.style.opacity = '0.7';
+    }
+    
+    document.getElementById('val-distance').innerText = '...';
+    document.getElementById('val-similarity').innerText = '...';
+    document.getElementById('val-rank').innerText = '...';
+    document.getElementById('val-nsi').innerText = '...';
 
     try {
         const resp = await fetch(`${API_BASE}/observe`, {
@@ -138,9 +149,17 @@ async function runObservation() {
             document.getElementById('layer-display').innerText = `Layer ${appState.currentLayer}`;
             
             updateLayerExplorer();
+            
+            // Trigger Plotly container auto-fit
+            setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
         }
     } catch (err) {
         console.error('Observation error:', err);
+    } finally {
+        if (btn) {
+            btn.innerText = 'Run Analysis';
+            btn.style.opacity = '1.0';
+        }
     }
 }
 
