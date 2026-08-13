@@ -8,8 +8,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt-get/lists/*
 
-# Install lightweight CPU-only PyTorch first (150MB instead of 1GB)
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+# Upgrade pip, setuptools, and wheel
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install CPU PyTorch using extra-index-url
+RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Copy requirements and install remaining packages
 COPY requirements.txt .
