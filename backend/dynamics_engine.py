@@ -118,16 +118,28 @@ def extract_model_dynamics(
             num_tokens=num_toks, dim=16, layers=12, pe_mode=pe_mode, skip_layer=skip_layer, disable_component=disable_component
         )
     else:
-        model, tokenizer = get_model_and_tokenizer(model_name)
-        
-        # Tokenize
-        inputs = tokenizer(text, return_tensors="pt")
-        input_ids = inputs["input_ids"]
-        tokens = tokenizer.convert_ids_to_tokens(input_ids[0])
-        
-        # Clean up BPE / WordPiece prefixes cleanly
-        tokens = [t.replace("Ġ", "").replace("##", "").replace(" ", "").strip() for t in tokens]
-        tokens = [t if t else "tok" for t in tokens]
+        try:
+            model, tokenizer = get_model_and_tokenizer(model_name)
+        except Exception as e:
+            print(f"[Warning] Failed to load {model_name} ({e}). Falling back to ODE Simulator.")
+            num_toks = min(max(len(text.split()), 4), 16)
+            tokens, hidden_states, attentions = run_ode_simulation(
+                num_tokens=num_toks, dim=16, layers=12, pe_mode=pe_mode, skip_layer=skip_layer, disable_component=disable_component
+            )
+            model = None
+
+        if model is None:
+            # Fallback path already computed hidden_states & attentions
+            pass
+        else:
+            # Tokenize
+            inputs = tokenizer(text, return_tensors="pt")
+            input_ids = inputs["input_ids"]
+            tokens = tokenizer.convert_ids_to_tokens(input_ids[0])
+            
+            # Clean up BPE / WordPiece prefixes cleanly
+            tokens = [t.replace("Ġ", "").replace("##", "").replace(" ", "").strip() for t in tokens]
+            tokens = [t if t else "tok" for t in tokens]
         
         hooks = []
         if pe_mode == "zeroed" and hasattr(model, "wpe"):
@@ -199,19 +211,20 @@ def extract_model_dynamics(
                         return (output[0] * scale,) + output[1:]
                     hooks.append(layer.attention.register_forward_hook(hook_scale_attn))
 
-        try:
-            with torch.no_grad():
-                outputs = model(**inputs)
-        finally:
-            # Remove all PyTorch hooks
-            for h in hooks:
-                h.remove()
-                
-        # Hidden states: list of tensors (1, N, D) -> list of np.ndarray (N, D)
-        hidden_states = [l[0].cpu().numpy() for l in outputs.hidden_states]
-        
-        # Attentions: list of tensors (1, H, N, N) -> list of np.ndarray (H, N, N)
-        attentions = [a[0].cpu().numpy() for a in outputs.attentions] if outputs.attentions else []
+        if model is not None:
+            try:
+                with torch.no_grad():
+                    outputs = model(**inputs)
+            finally:
+                # Remove all PyTorch hooks
+                for h in hooks:
+                    h.remove()
+                    
+            # Hidden states: list of tensors (1, N, D) -> list of np.ndarray (N, D)
+            hidden_states = [l[0].cpu().numpy() for l in outputs.hidden_states]
+            
+            # Attentions: list of tensors (1, H, N, N) -> list of np.ndarray (H, N, N)
+            attentions = [a[0].cpu().numpy() for a in outputs.attentions] if outputs.attentions else []
         
     # Calculate 4 Core Metrics
     metrics = compute_all_layer_metrics(hidden_states)
