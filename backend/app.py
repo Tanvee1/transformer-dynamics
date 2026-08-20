@@ -160,9 +160,9 @@ def generate_layer_insights(model_name: str, layer: int, total_layers: int) -> d
         stiffness_note = "Variable stiffness as final linear projections separate distinct output classes or collapse tokens into next-token prediction states."
         
     components = {
-        "self_attention": "Computes Softmax(Q K<sup>T</sup> / √d) V to mix information across token positions.",
+        "self_attention": "Computes Softmax(Q K<sup>T</sup> / &radic;d<sub>k</sub>) V to mix information across token positions.",
         "mlp_sublayer": "Applies non-linear point-wise projections (GELU/ReLU) to expand and project features back to residual dimension.",
-        "residual_stream": "Adds layer input to output X + f(X), enabling unimpeded gradient flow and incremental representation updates.",
+        "residual_stream": "Adds layer input to output X<sup>(l-1)</sup> + f(X<sup>(l-1)</sup>), enabling unimpeded gradient flow and incremental representation updates.",
         "layernorm": "Normalizes hidden vector activations to zero mean and unit variance, preventing internal covariate shift."
     }
     
