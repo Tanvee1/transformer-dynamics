@@ -73,6 +73,7 @@ def observe_dynamics(req: AnalysisRequest):
             "status": "success",
             "live_data": live_data,
             "benchmark_data": benchmark_data
+        }
     except Exception as e:
         print(f"[Server Warning] /api/observe exception: {e}. Returning ODE simulation baseline.")
         live_data = extract_model_dynamics(
