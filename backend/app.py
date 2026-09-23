@@ -187,9 +187,13 @@ def evaluate_experiment_comparison(base_m: dict, mod_m: dict, req: ExperimentReq
     base_nsi = np.array(base_m["nsi"])
     mod_nsi = np.array(mod_m["nsi"])
     
-    dist_change_pct = float(np.mean((mod_dist - base_dist) / (base_dist + 1e-8)) * 100)
-    rank_change_pct = float(np.mean((mod_rank - base_rank) / (base_rank + 1e-8)) * 100)
-    nsi_change_pct = float(np.mean((mod_nsi - base_nsi) / (base_nsi + 1e-8)) * 100)
+    min_d = min(len(mod_dist), len(base_dist))
+    min_r = min(len(mod_rank), len(base_rank))
+    min_n = min(len(mod_nsi), len(base_nsi))
+    
+    dist_change_pct = float(np.mean((mod_dist[:min_d] - base_dist[:min_d]) / (base_dist[:min_d] + 1e-8)) * 100) if min_d > 0 else 0.0
+    rank_change_pct = float(np.mean((mod_rank[:min_r] - base_rank[:min_r]) / (base_rank[:min_r] + 1e-8)) * 100) if min_r > 0 else 0.0
+    nsi_change_pct = float(np.mean((mod_nsi[:min_n] - base_nsi[:min_n]) / (base_nsi[:min_n] + 1e-8)) * 100) if min_n > 0 else 0.0
     
     mod_type = []
     if req.modified_model and req.modified_model != req.baseline_model:

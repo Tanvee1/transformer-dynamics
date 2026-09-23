@@ -75,21 +75,16 @@ function initTabs() {
 
             btn.classList.add('active');
             const tabId = btn.getAttribute('data-tab');
-            const pane = document.getElementById(tabId);
-            if (pane) pane.classList.add('active');
-            
-            // Re-render Results chart if switching to Results tab
+            const targetPane = document.getElementById(tabId);
+            if (targetPane) targetPane.classList.add('active');
+
             if (tabId === 'tab-results' && appState.baselineData) {
                 renderExperimentResults(appState.baselineData, appState.modifiedData, appState.comparisonData);
             }
-
+            
             // Resize Plotly charts when tab switches
             window.dispatchEvent(new Event('resize'));
-            setTimeout(() => {
-                if (typeof Plotly !== 'undefined') {
-                    Plotly.Plots.resize('plot-results-comparison');
-                }
-            }, 50);
+            setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 50);
         });
     });
 }
@@ -147,6 +142,9 @@ async function runObservation() {
             renderObservationCharts(result.live_data);
             renderObservationNotes(model, result.live_data);
             
+            // Render baseline comparison metrics in Stage 4
+            renderExperimentResults(result.live_data, appState.modifiedData, appState.comparisonData);
+
             // Sentence Evolution Flow (Slide 14 Demo)
             renderSentenceEvolution(result.live_data.sentence_evolution);
             
@@ -163,9 +161,6 @@ async function runObservation() {
             
             updateLayerExplorer();
             
-            // Populate Stage 4 Results baseline chart immediately
-            renderExperimentResults(result.live_data, appState.modifiedData, appState.comparisonData);
-
             // Trigger Plotly container auto-fit
             setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
         }
@@ -419,7 +414,7 @@ async function runExperiment() {
             
             renderExperimentResults(result.baseline, result.modified, result.comparison);
         } else {
-            console.error('Experiment failed:', result);
+            console.error('Experiment server returned non-success:', result);
         }
     } catch (err) {
         console.error('Experiment error:', err);
@@ -438,14 +433,14 @@ function renderExperimentResults(base, mod, comp) {
     const themeCols = getPlotThemeColors();
     const numLayers = base.metrics.distance.length;
     const layers = Array.from({ length: numLayers }, (_, i) => `L${i}`);
-
+    
     const baseDist = { 
         x: layers, 
         y: base.metrics.distance, 
         name: 'Baseline Distance', 
         type: 'scatter', 
         mode: 'lines+markers', 
-        line: { color: '#38BDF8', width: 2.5 },
+        line: { color: '#38BDF8', width: 2.5, dash: 'solid' },
         marker: { size: 6 }
     };
     const baseRank = { 
@@ -454,15 +449,18 @@ function renderExperimentResults(base, mod, comp) {
         name: 'Baseline Rank', 
         type: 'scatter', 
         mode: 'lines+markers', 
-        line: { color: '#34D399', width: 2.5 },
+        line: { color: '#34D399', width: 2.5, dash: 'solid' },
         marker: { size: 6 }
     };
 
     let traces = [baseDist, baseRank];
 
     if (mod && mod.metrics) {
+        const modNumLayers = mod.metrics.distance.length;
+        const modLayers = Array.from({ length: modNumLayers }, (_, i) => `L${i}`);
+
         const modDist = { 
-            x: layers, 
+            x: modLayers, 
             y: mod.metrics.distance, 
             name: 'Modified Distance', 
             type: 'scatter', 
@@ -471,7 +469,7 @@ function renderExperimentResults(base, mod, comp) {
             marker: { size: 7, symbol: 'diamond' }
         };
         const modRank = { 
-            x: layers, 
+            x: modLayers, 
             y: mod.metrics.effective_rank, 
             name: 'Modified Rank', 
             type: 'scatter', 
@@ -494,7 +492,7 @@ function renderExperimentResults(base, mod, comp) {
     };
 
     const container = document.getElementById('plot-results-comparison');
-    if (container && typeof Plotly !== 'undefined') {
+    if (container) {
         Plotly.newPlot('plot-results-comparison', traces, layoutResults, { responsive: true, displayModeBar: false });
         setTimeout(() => {
             Plotly.Plots.resize('plot-results-comparison');

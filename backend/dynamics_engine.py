@@ -164,25 +164,35 @@ def extract_model_dynamics(
             for idx, layer in enumerate(model.h):
                 if idx in to_skip:
                     def hook_skip_layer(module, input, output):
-                        return (input[0],) + output[1:]
+                        if isinstance(output, tuple):
+                            return (input[0],) + output[1:]
+                        return input[0]
                     hooks.append(layer.register_forward_hook(hook_skip_layer))
                     
                 if disable_component == "mlp":
                     def hook_zero_mlp(module, input, output):
+                        if isinstance(output, tuple):
+                            return (torch.zeros_like(output[0]),) + output[1:]
                         return torch.zeros_like(output)
                     hooks.append(layer.mlp.register_forward_hook(hook_zero_mlp))
                 elif mlp_scale != 1.0:
                     def hook_scale_mlp(module, input, output, scale=mlp_scale):
+                        if isinstance(output, tuple):
+                            return (output[0] * scale,) + output[1:]
                         return output * scale
                     hooks.append(layer.mlp.register_forward_hook(hook_scale_mlp))
 
                 if disable_component == "attention":
                     def hook_zero_attn(module, input, output):
-                        return (torch.zeros_like(output[0]),) + output[1:]
+                        if isinstance(output, tuple):
+                            return (torch.zeros_like(output[0]),) + output[1:]
+                        return torch.zeros_like(output)
                     hooks.append(layer.attn.register_forward_hook(hook_zero_attn))
                 elif attn_scale != 1.0:
                     def hook_scale_attn(module, input, output, scale=attn_scale):
-                        return (output[0] * scale,) + output[1:]
+                        if isinstance(output, tuple):
+                            return (output[0] * scale,) + output[1:]
+                        return output * scale
                     hooks.append(layer.attn.register_forward_hook(hook_scale_attn))
 
         elif model_name == "bert":
@@ -190,25 +200,35 @@ def extract_model_dynamics(
             for idx, layer in enumerate(model.encoder.layer):
                 if idx in to_skip:
                     def hook_skip_layer(module, input, output):
-                        return (input[0],) + output[1:]
+                        if isinstance(output, tuple):
+                            return (input[0],) + output[1:]
+                        return input[0]
                     hooks.append(layer.register_forward_hook(hook_skip_layer))
                     
                 if disable_component == "mlp":
                     def hook_zero_mlp(module, input, output):
+                        if isinstance(output, tuple):
+                            return (torch.zeros_like(output[0]),) + output[1:]
                         return torch.zeros_like(output)
                     hooks.append(layer.output.register_forward_hook(hook_zero_mlp))
                 elif mlp_scale != 1.0:
                     def hook_scale_mlp(module, input, output, scale=mlp_scale):
+                        if isinstance(output, tuple):
+                            return (output[0] * scale,) + output[1:]
                         return output * scale
                     hooks.append(layer.output.register_forward_hook(hook_scale_mlp))
 
                 if disable_component == "attention":
                     def hook_zero_attn(module, input, output):
-                        return (torch.zeros_like(output[0]),) + output[1:]
+                        if isinstance(output, tuple):
+                            return (torch.zeros_like(output[0]),) + output[1:]
+                        return torch.zeros_like(output)
                     hooks.append(layer.attention.register_forward_hook(hook_zero_attn))
                 elif attn_scale != 1.0:
                     def hook_scale_attn(module, input, output, scale=attn_scale):
-                        return (output[0] * scale,) + output[1:]
+                        if isinstance(output, tuple):
+                            return (output[0] * scale,) + output[1:]
+                        return output * scale
                     hooks.append(layer.attention.register_forward_hook(hook_scale_attn))
 
         if model is not None:
