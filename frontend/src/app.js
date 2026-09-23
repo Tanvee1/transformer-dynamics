@@ -6,6 +6,7 @@ const API_BASE = window.location.origin + '/api';
 let appState = {
     baselineData: null,
     modifiedData: null,
+    comparisonData: null,
     benchmarkData: null,
     currentLayer: 0,
     theme: localStorage.getItem('theme') || 'dark'
@@ -33,6 +34,7 @@ function initThemeToggle() {
         if (appState.baselineData) {
             renderObservationCharts(appState.baselineData);
             updateLayerExplorer();
+            renderExperimentResults(appState.baselineData, appState.modifiedData, appState.comparisonData);
         }
         if (appState.benchmarkData) {
             renderBenchmarkPlots(appState.benchmarkData);
@@ -73,10 +75,21 @@ function initTabs() {
 
             btn.classList.add('active');
             const tabId = btn.getAttribute('data-tab');
-            document.getElementById(tabId).classList.add('active');
+            const pane = document.getElementById(tabId);
+            if (pane) pane.classList.add('active');
             
+            // Re-render Results chart if switching to Results tab
+            if (tabId === 'tab-results' && appState.baselineData) {
+                renderExperimentResults(appState.baselineData, appState.modifiedData, appState.comparisonData);
+            }
+
             // Resize Plotly charts when tab switches
             window.dispatchEvent(new Event('resize'));
+            setTimeout(() => {
+                if (typeof Plotly !== 'undefined') {
+                    Plotly.Plots.resize('plot-results-comparison');
+                }
+            }, 50);
         });
     });
 }
@@ -150,6 +163,9 @@ async function runObservation() {
             
             updateLayerExplorer();
             
+            // Populate Stage 4 Results baseline chart immediately
+            renderExperimentResults(result.live_data, appState.modifiedData, appState.comparisonData);
+
             // Trigger Plotly container auto-fit
             setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
         }
@@ -369,6 +385,13 @@ async function runExperiment() {
     
     const attnScale = parseFloat(document.getElementById('exp-attn-scale').value);
 
+    const btn = document.getElementById('btn-run-experiment');
+    if (btn) {
+        btn.innerText = 'Running Controlled Experiment...';
+        btn.style.opacity = '0.7';
+        btn.disabled = true;
+    }
+
     try {
         const resp = await fetch(`${API_BASE}/experiment`, {
             method: 'POST',
@@ -386,62 +409,133 @@ async function runExperiment() {
 
         const result = await resp.json();
         if (result.status === 'success') {
+            appState.baselineData = result.baseline;
             appState.modifiedData = result.modified;
+            appState.comparisonData = result.comparison;
             
             // Switch to Stage 4 Results Tab
-            document.querySelector('[data-tab="tab-results"]').click();
+            const resultsTabBtn = document.querySelector('[data-tab="tab-results"]');
+            if (resultsTabBtn) resultsTabBtn.click();
             
             renderExperimentResults(result.baseline, result.modified, result.comparison);
+        } else {
+            console.error('Experiment failed:', result);
         }
     } catch (err) {
         console.error('Experiment error:', err);
+    } finally {
+        if (btn) {
+            btn.innerText = 'Run Controlled Experiment';
+            btn.style.opacity = '1.0';
+            btn.disabled = false;
+        }
     }
 }
 
 function renderExperimentResults(base, mod, comp) {
-    const layers = Array.from({ length: base.metrics.distance.length }, (_, i) => `L${i}`);
-    
-    const baseDist = { x: layers, y: base.metrics.distance, name: 'Baseline Distance', type: 'scatter', mode: 'lines', line: { color: '#38BDF8', width: 2, dash: 'solid' } };
-    const modDist = { x: layers, y: mod.metrics.distance, name: 'Modified Distance', type: 'scatter', mode: 'lines+markers', line: { color: '#F87171', width: 2.5 } };
-    
-    const baseRank = { x: layers, y: base.metrics.effective_rank, name: 'Baseline Rank', type: 'scatter', mode: 'lines', line: { color: '#34D399', width: 2, dash: 'solid' } };
-    const modRank = { x: layers, y: mod.metrics.effective_rank, name: 'Modified Rank', type: 'scatter', mode: 'lines+markers', line: { color: '#FBBF24', width: 2.5 } };
+    if (!base || !base.metrics) return;
+
+    const themeCols = getPlotThemeColors();
+    const numLayers = base.metrics.distance.length;
+    const layers = Array.from({ length: numLayers }, (_, i) => `L${i}`);
+
+    const baseDist = { 
+        x: layers, 
+        y: base.metrics.distance, 
+        name: 'Baseline Distance', 
+        type: 'scatter', 
+        mode: 'lines+markers', 
+        line: { color: '#38BDF8', width: 2.5 },
+        marker: { size: 6 }
+    };
+    const baseRank = { 
+        x: layers, 
+        y: base.metrics.effective_rank, 
+        name: 'Baseline Rank', 
+        type: 'scatter', 
+        mode: 'lines+markers', 
+        line: { color: '#34D399', width: 2.5 },
+        marker: { size: 6 }
+    };
+
+    let traces = [baseDist, baseRank];
+
+    if (mod && mod.metrics) {
+        const modDist = { 
+            x: layers, 
+            y: mod.metrics.distance, 
+            name: 'Modified Distance', 
+            type: 'scatter', 
+            mode: 'lines+markers', 
+            line: { color: '#F87171', width: 2.5 },
+            marker: { size: 7, symbol: 'diamond' }
+        };
+        const modRank = { 
+            x: layers, 
+            y: mod.metrics.effective_rank, 
+            name: 'Modified Rank', 
+            type: 'scatter', 
+            mode: 'lines+markers', 
+            line: { color: '#FBBF24', width: 2.5 },
+            marker: { size: 7, symbol: 'square' }
+        };
+        traces.push(modDist, modRank);
+    }
 
     const layoutResults = {
         paper_bgcolor: 'transparent',
         plot_bgcolor: 'transparent',
-        font: { color: '#94A3B8', family: 'Inter' },
-        margin: { t: 20, b: 40, l: 40, r: 40 },
-        legend: { orientation: 'h', x: 0.5, xanchor: 'center', y: 1.08 },
-        xaxis: { title: 'Layer Index', gridcolor: '#1E293B' },
-        yaxis: { title: 'Metric Values', gridcolor: '#1E293B' }
+        font: { color: themeCols.fontColor, family: 'Inter' },
+        margin: { t: 25, b: 45, l: 45, r: 45 },
+        legend: { orientation: 'h', x: 0.5, xanchor: 'center', y: 1.12 },
+        xaxis: { title: 'Layer Index', gridcolor: themeCols.gridColor },
+        yaxis: { title: 'Metric Values', gridcolor: themeCols.gridColor },
+        autosize: true
     };
 
-    Plotly.newPlot('plot-results-comparison', [baseDist, modDist, baseRank, modRank], layoutResults, { responsive: true, displayModeBar: false });
+    const container = document.getElementById('plot-results-comparison');
+    if (container && typeof Plotly !== 'undefined') {
+        Plotly.newPlot('plot-results-comparison', traces, layoutResults, { responsive: true, displayModeBar: false });
+        setTimeout(() => {
+            Plotly.Plots.resize('plot-results-comparison');
+        }, 50);
+    }
 
     // Render Research Conclusions & Suggestions
-    const container = document.getElementById('insights-container');
-    const delta = comp.metrics_delta;
-    
-    let html = `
-        <li style="font-weight:600; color:#F1F5F9;">Experiment Run: ${comp.modification_description}</li>
-        <li>
-            Shift Summary: 
-            Rank <span class="badge-delta ${delta.avg_rank_shift_pct >= 0 ? 'delta-pos' : 'delta-neg'}">${delta.avg_rank_shift_pct}%</span> | 
-            NSI <span class="badge-delta ${delta.avg_nsi_shift_pct >= 0 ? 'delta-pos' : 'delta-neg'}">${delta.avg_nsi_shift_pct}%</span> | 
-            Distance <span class="badge-delta ${delta.avg_distance_shift_pct >= 0 ? 'delta-pos' : 'delta-neg'}">${delta.avg_distance_shift_pct}%</span>
-        </li>
-    `;
+    const insightsContainer = document.getElementById('insights-container');
+    if (!insightsContainer) return;
 
-    comp.conclusions.forEach(c => {
-        html += `<li><strong>Research Analysis:</strong> ${c}</li>`;
-    });
+    if (comp && comp.metrics_delta) {
+        const delta = comp.metrics_delta;
+        let html = `
+            <li style="font-weight:600; color: var(--text-primary);">Experiment Run: ${comp.modification_description}</li>
+            <li>
+                Shift Summary: 
+                Rank <span class="badge-delta ${delta.avg_rank_shift_pct >= 0 ? 'delta-pos' : 'delta-neg'}">${delta.avg_rank_shift_pct >= 0 ? '+' : ''}${delta.avg_rank_shift_pct}%</span> | 
+                NSI <span class="badge-delta ${delta.avg_nsi_shift_pct >= 0 ? 'delta-pos' : 'delta-neg'}">${delta.avg_nsi_shift_pct >= 0 ? '+' : ''}${delta.avg_nsi_shift_pct}%</span> | 
+                Distance <span class="badge-delta ${delta.avg_distance_shift_pct >= 0 ? 'delta-pos' : 'delta-neg'}">${delta.avg_distance_shift_pct >= 0 ? '+' : ''}${delta.avg_distance_shift_pct}%</span>
+            </li>
+        `;
 
-    comp.suggestions.forEach(s => {
-        html += `<li style="color: var(--accent-cyan);"><strong>Architectural Suggestion:</strong> ${s}</li>`;
-    });
+        if (comp.conclusions) {
+            comp.conclusions.forEach(c => {
+                html += `<li><strong>Research Analysis:</strong> ${c}</li>`;
+            });
+        }
 
-    container.innerHTML = html;
+        if (comp.suggestions) {
+            comp.suggestions.forEach(s => {
+                html += `<li style="color: var(--accent-cyan);"><strong>Architectural Suggestion:</strong> ${s}</li>`;
+            });
+        }
+
+        insightsContainer.innerHTML = html;
+    } else {
+        insightsContainer.innerHTML = `
+            <li style="font-weight:500; color: var(--text-primary);">Baseline model metrics loaded cleanly (${base.num_layers || numLayers} layers).</li>
+            <li>Go to <strong>Stage 3: Controlled Experiment</strong> to apply layer pruning, positional encoding changes, or component scaling, then click <em>Run Controlled Experiment</em> to compare against this baseline.</li>
+        `;
+    }
 }
 
 // Render Paper Empirical Benchmark Figures
